@@ -1,0 +1,7 @@
+# requirements.txt for Python inference (volume-estimation)
+torch
+numpy
+opencv-python
+Pillow
+scikit-learn
+# Ajoute d'autres dépendances nécessaires ici

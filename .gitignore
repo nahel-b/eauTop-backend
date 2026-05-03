@@ -1,0 +1,7 @@
+.vercel
+volume-estimation/dataset_eauTop
+build/
+example/
+*.env*
+node_modules/
+*.DS_Store

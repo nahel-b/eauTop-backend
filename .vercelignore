@@ -1,0 +1,12 @@
+# Ne pas déployer le dataset local
+volume-estimation/dataset_eauTop
+
+# Éviter d'envoyer les checkpoints et modèles lourds sur Vercel
+volume-estimation/checkpoints
+volume-estimation/*.onnx
+
+# Fichiers locaux et temporaires
+volume-estimation/venv
+**/node_modules
+**/.DS_Store
+**/*.log
