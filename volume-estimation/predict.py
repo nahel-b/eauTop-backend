@@ -22,7 +22,16 @@ def load_config(checkpoint_path: Path):
 
 
 def build_model(model_name: str, num_classes: int = 4):
-    if model_name == 'resnet50':
+    if model_name == 'resnet18':
+        model = models.resnet18(pretrained=False)
+        in_features = model.fc.in_features
+        model.fc = torch.nn.Sequential(
+            torch.nn.Linear(in_features, 256),
+            torch.nn.ReLU(inplace=True),
+            torch.nn.Dropout(p=0.2),
+            torch.nn.Linear(256, num_classes),
+        )
+    elif model_name == 'resnet50':
         model = models.resnet50(pretrained=False)
         in_features = model.fc.in_features
         model.fc = torch.nn.Sequential(
@@ -39,7 +48,7 @@ def build_model(model_name: str, num_classes: int = 4):
             torch.nn.Linear(in_features, 256),
             torch.nn.ReLU(inplace=True),
             torch.nn.Dropout(p=0.2, inplace=True),
-            torch.nn.Linear(256, num_classes),
+            torch.nn.Linear(in_features, num_classes),
         )
     else:
         raise ValueError('model-name invalide')

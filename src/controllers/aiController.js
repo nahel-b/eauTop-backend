@@ -41,7 +41,7 @@ exports.predictContainer = async (req, res) => {
 
     const imagePath = req.file.path;
     // Utilise le chemin absolu depuis la racine du projet (Render context)
-    const checkpointPath = path.join(process.cwd(), 'volume-estimation/checkpoints/resnet50_best.pth');
+    const checkpointPath = path.join(process.cwd(), 'volume-estimation/checkpoints/resnet18_best.pth');
     const pythonScript = path.join(process.cwd(), 'volume-estimation/predict.py');
 
     execFile(
@@ -53,7 +53,7 @@ exports.predictContainer = async (req, res) => {
         '--image',
         imagePath,
         '--model-name',
-        'resnet50',
+        'resnet18',
         '--image-size',
         '224',
         '--device',
