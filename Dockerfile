@@ -17,8 +17,9 @@ RUN npm ci
 # Copy only the Python requirements file needed for dependency installation
 COPY volume-estimation/requirements-inference.txt ./volume-estimation/requirements-inference.txt
 
-# Install Python dependencies required by volume-estimation
-RUN python3 -m pip install --no-cache-dir -r volume-estimation/requirements-inference.txt
+# Upgrade pip and install Python dependencies required by volume-estimation
+RUN python3 -m pip install --upgrade pip setuptools wheel \
+  && python3 -m pip install --no-cache-dir -r volume-estimation/requirements-inference.txt -f https://download.pytorch.org/whl/cpu/torch_stable.html
 
 # Copy the rest of the application files
 COPY . .
