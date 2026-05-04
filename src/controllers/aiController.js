@@ -38,17 +38,11 @@ exports.predictContainer = async (req, res) => {
       return res.status(400).json({ error: 'No image provided' });
     }
 
-    const imagePath = req.file.path;
-    const checkpointPath = path.join(
-      __dirname,
-      '../../../volume-estimation/checkpoints/resnet50_best.pth'
-    );
 
-    // Run Python prediction script
-    const pythonScript = path.join(
-      __dirname,
-      '../../../volume-estimation/predict.py'
-    );
+    const imagePath = req.file.path;
+    // Utilise le chemin absolu depuis la racine du projet (Render context)
+    const checkpointPath = path.join(process.cwd(), 'volume-estimation/checkpoints/resnet50_best.pth');
+    const pythonScript = path.join(process.cwd(), 'volume-estimation/predict.py');
 
     execFile(
       'python3',
