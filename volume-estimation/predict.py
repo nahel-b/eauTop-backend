@@ -96,7 +96,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Prédire le volume et la confiance avec un modèle entraîné')
     parser.add_argument('--checkpoint', type=Path, required=True, help='Chemin du checkpoint .pth')
     parser.add_argument('--image', type=Path, required=True, help='Image à prédire')
-    parser.add_argument('--model-name', type=str, default='resnet50', choices=['resnet50', 'efficientnet_b0'])
+    parser.add_argument('--model-name', type=str, default='resnet18', choices=['resnet18', 'resnet50', 'efficientnet_b0'])
     parser.add_argument('--image-size', type=int, default=224)
     parser.add_argument('--device', type=str, default='cpu', choices=['cpu', 'cuda'])
     return parser.parse_args()
