@@ -44,6 +44,11 @@ exports.predictContainer = async (req, res) => {
     const onnxModelPath = path.join(process.cwd(), 'volume-estimation/model_resnet50.onnx');
     const pythonScript = path.join(process.cwd(), 'volume-estimation/predict.py');
 
+    console.log('AI prediction request', {
+      imagePath,
+      onnxModelPath,
+    });
+
     execFile(
       'python3',
       [
@@ -61,20 +66,40 @@ exports.predictContainer = async (req, res) => {
           fs.unlinkSync(imagePath);
         }
 
+        if (stderr) {
+          console.warn('Python stderr:', stderr.trim());
+        }
+
         if (error) {
           console.error('Python error:', stderr);
           return res.status(500).json({ error: 'Prediction failed' });
         }
 
-        const predictedClass = stdout.trim().split('\n').pop().split(': ')[1];
+        let prediction;
+        try {
+          prediction = JSON.parse(stdout.trim().split('\n').pop());
+        } catch (parseError) {
+          console.error('Failed to parse prediction output:', stdout, parseError);
+          return res.status(500).json({ error: 'Invalid prediction response' });
+        }
+
+        const predictedClass = prediction.predicted_class;
+        const confidence = Number(prediction.confidence ?? 0);
         const classInfo = CLASS_MAPPING[predictedClass] || {
           name: predictedClass,
           defaultVolume: 500,
           variants: [250, 500, 750, 1000],
         };
 
+        console.log('AI prediction result', {
+          predictedClass,
+          confidence,
+          containerName: classInfo.name,
+        });
+
         res.json({
           predictedClass,
+          confidence,
           containerName: classInfo.name,
           estimatedVolume: classInfo.defaultVolume,
           variants: classInfo.variants,

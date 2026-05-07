@@ -135,6 +135,11 @@ def get_class_names(path: Path, num_classes: int):
     return [f'class_{i}' for i in range(num_classes)]
 
 
+def softmax(logits: np.ndarray):
+    exp = np.exp(logits - np.max(logits, axis=-1, keepdims=True))
+    return exp / np.sum(exp, axis=-1, keepdims=True)
+
+
 def predict_torch(checkpoint: Path, image: Path, model_name: str, image_size: int, device: str):
     torch, _ = import_torch()
     device = torch.device(device if torch.cuda.is_available() and device == 'cuda' else 'cpu')
@@ -142,10 +147,12 @@ def predict_torch(checkpoint: Path, image: Path, model_name: str, image_size: in
     input_tensor = torch.tensor(preprocess(image, image_size), dtype=torch.float32, device=device)
     with torch.inference_mode():
         output = model(input_tensor)
-        pred_idx = int(output.argmax(dim=1).item())
+        probs = torch.nn.functional.softmax(output, dim=1)
+        pred_idx = int(probs.argmax(dim=1).item())
+        confidence = float(probs[0, pred_idx].item())
     if class_names is None:
         class_names = [f'class_{i}' for i in range(output.shape[1])]
-    return class_names[pred_idx]
+    return class_names[pred_idx], confidence
 
 
 def predict_onnx(onnx_path: Path, image: Path, image_size: int):
@@ -153,9 +160,11 @@ def predict_onnx(onnx_path: Path, image: Path, image_size: int):
     input_tensor = preprocess(image, image_size).astype(np.float32)
     outputs = session.run(None, {'input': input_tensor})
     output = outputs[0]
-    pred_idx = int(np.argmax(output, axis=1)[0])
+    probs = softmax(output)
+    pred_idx = int(np.argmax(probs, axis=1)[0])
+    confidence = float(probs[0, pred_idx])
     class_names = get_class_names(onnx_path, output.shape[1])
-    return class_names[pred_idx]
+    return class_names[pred_idx], confidence
 
 
 def parse_args():
@@ -173,10 +182,14 @@ def parse_args():
 def main():
     args = parse_args()
     if args.onnx_model:
-        label = predict_onnx(args.onnx_model, args.image, args.image_size)
+        predicted_class, confidence = predict_onnx(args.onnx_model, args.image, args.image_size)
     else:
-        label = predict_torch(args.checkpoint, args.image, args.model_name, args.image_size, args.device)
-    print(f"Classe prédite : {label}")
+        predicted_class, confidence = predict_torch(args.checkpoint, args.image, args.model_name, args.image_size, args.device)
+    result = {
+        'predicted_class': predicted_class,
+        'confidence': confidence,
+    }
+    print(json.dumps(result, ensure_ascii=False))
 
 
 if __name__ == '__main__':
