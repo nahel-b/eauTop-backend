@@ -14,12 +14,6 @@ import numpy as np
 from PIL import Image
 
 try:
-    from albumentations import Compose, Normalize, Resize
-    from albumentations.pytorch import ToTensorV2
-except ImportError:
-    raise ImportError('Installe albumentations pour lancer ce script : pip install albumentations')
-
-try:
     import onnxruntime as ort
     ONNX_RUNTIME_AVAILABLE = True
 except ImportError:
@@ -87,13 +81,12 @@ def build_model(model_name: str, num_classes: int = 4):
 
 
 def preprocess(image_path: Path, image_size: int):
-    image = np.array(Image.open(image_path).convert('RGB'))
-    transform = Compose([
-        Resize(image_size, image_size),
-        Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-        ToTensorV2(),
-    ])
-    return transform(image=image)['image'].unsqueeze(0)
+    image = Image.open(image_path).convert('RGB')
+    image = image.resize((image_size, image_size), Image.BILINEAR)
+    image = np.array(image).astype(np.float32) / 255.0
+    image = (image - np.array([0.485, 0.456, 0.406], dtype=np.float32)) / np.array([0.229, 0.224, 0.225], dtype=np.float32)
+    image = image.transpose(2, 0, 1)
+    return np.expand_dims(image, axis=0)
 
 
 def load_checkpoint(checkpoint_path: Path, model_name: str, device):
@@ -146,7 +139,7 @@ def predict_torch(checkpoint: Path, image: Path, model_name: str, image_size: in
     torch, _ = import_torch()
     device = torch.device(device if torch.cuda.is_available() and device == 'cuda' else 'cpu')
     model, class_names = get_cached_model(checkpoint, model_name, device)
-    input_tensor = preprocess(image, image_size).to(device)
+    input_tensor = torch.tensor(preprocess(image, image_size), dtype=torch.float32, device=device)
     with torch.inference_mode():
         output = model(input_tensor)
         pred_idx = int(output.argmax(dim=1).item())
@@ -157,7 +150,7 @@ def predict_torch(checkpoint: Path, image: Path, model_name: str, image_size: in
 
 def predict_onnx(onnx_path: Path, image: Path, image_size: int):
     session = load_onnx_session(onnx_path)
-    input_tensor = preprocess(image, image_size).cpu().numpy().astype(np.float32)
+    input_tensor = preprocess(image, image_size).astype(np.float32)
     outputs = session.run(None, {'input': input_tensor})
     output = outputs[0]
     pred_idx = int(np.argmax(output, axis=1)[0])
