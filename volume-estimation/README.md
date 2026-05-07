@@ -13,13 +13,30 @@ Le dataset doit être organisé par dossier de classes, avec le volume dans le n
 
 Les images doivent être dans ces sous-dossiers.
 
+## Installation
+
+Pour le backend qui exécute uniquement un modèle ONNX, installe les dépendances légères :
+
+```bash
+cd /Users/nahelbelmadani/Desktop/projets/eauTop-backend/volume-estimation
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+```
+
+Si tu veux entraîner ou exporter le modèle depuis ce dépôt, installe les dépendances complètes :
+
+```bash
+python3 -m pip install -r requirements-full.txt
+```
+
 ## Entraînement
 
 1. Active ton environnement virtuel :
 
 ```bash
-cd /Users/nahelbelmadani/Desktop/projets/eauTop/volume-estimation
-source venv/bin/activate
+cd /Users/nahelbelmadani/Desktop/projets/eauTop-backend/volume-estimation
+source .venv/bin/activate
 ```
 
 2. Lance l'entraînement :
@@ -30,17 +47,16 @@ python train.py --data-dir dataset_eauTop --model-name resnet50 --epochs 25 --ba
 
 ## Prédiction
 
-Après entraînement, utilise `predict.py` :
+Pour exécuter un modèle ONNX depuis le backend :
+
+```bash
+python predict.py --onnx-model model_resnet50.onnx --image dataset_eauTop/01_verre_500mL/IMG_7318.jpeg
+```
+
+Pour utiliser un checkpoint PyTorch (si tu as besoin de cela) :
 
 ```bash
 python predict.py --checkpoint checkpoints/resnet50_best.pth --image dataset_eauTop/01_verre_200mL/IMG_7250.jpeg --model-name resnet50
-```
-
-Pour une version plus légère en mémoire, exporte et utilise un modèle ONNX :
-
-```bash
-python export_onnx.py --checkpoint checkpoints/resnet50_best.pth --model-name resnet50 --output model_resnet50.onnx
-python predict.py --onnx-model model_resnet50.onnx --image dataset_eauTop/01_verre_200mL/IMG_7250.jpeg
 ```
 
 La sortie affichera la classe prédite, par exemple `01_verre_200mL`.

@@ -32,10 +32,10 @@ RUN curl -fsSL https://nodejs.org/dist/v20.19.4/node-v20.19.4-linux-x64.tar.xz -
 COPY package*.json ./
 RUN npm ci
 
-# Copy Python requirement file and install exact local Python dependencies
+# Copy Python requirement file and install minimal runtime Python dependencies for ONNX inference
 COPY volume-estimation/requirements.txt ./volume-estimation/requirements.txt
 RUN python3 -m pip install --upgrade pip setuptools wheel \
-  && python3 -m pip install --no-cache-dir -r volume-estimation/requirements.txt -f https://download.pytorch.org/whl/cpu/torch_stable.html
+  && python3 -m pip install --no-cache-dir -r volume-estimation/requirements.txt
 
 # Copy the rest of the project
 COPY . .

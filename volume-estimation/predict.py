@@ -8,17 +8,10 @@ os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['NUMEXPR_NUM_THREADS'] = '1'
 os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
-
 os.environ['TORCH_HOME'] = os.environ.get('TORCH_HOME', str(Path.home() / '.cache' / 'torch'))
 
 import numpy as np
-import torch
 from PIL import Image
-from torchvision import models
-
-torch.set_num_threads(1)
-torch.set_num_interop_threads(1)
-torch.set_grad_enabled(False)
 
 try:
     from albumentations import Compose, Normalize, Resize
@@ -33,6 +26,19 @@ except ImportError:
     ort = None
     ONNX_RUNTIME_AVAILABLE = False
 
+
+def import_torch():
+    try:
+        import torch
+        from torchvision import models
+    except ImportError as exc:
+        raise ImportError('Installe torch et torchvision pour utiliser le mode checkpoint PyTorch') from exc
+
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
+    torch.set_grad_enabled(False)
+    return torch, models
+
 MODEL_CACHE = {}
 SESSION_CACHE = {}
 
@@ -45,6 +51,8 @@ def load_config(path: Path):
 
 
 def build_model(model_name: str, num_classes: int = 4):
+    torch, models = import_torch()
+
     if model_name == 'resnet18':
         model = models.resnet18(pretrained=False)
         in_features = model.fc.in_features
@@ -88,7 +96,8 @@ def preprocess(image_path: Path, image_size: int):
     return transform(image=image)['image'].unsqueeze(0)
 
 
-def load_checkpoint(checkpoint_path: Path, model_name: str, device: torch.device):
+def load_checkpoint(checkpoint_path: Path, model_name: str, device):
+    torch, _ = import_torch()
     config = load_config(checkpoint_path)
     num_classes = config.get('num_classes', 4) if config else 4
     class_names = config.get('classes') if config else None
@@ -105,7 +114,7 @@ def load_checkpoint(checkpoint_path: Path, model_name: str, device: torch.device
     return model, class_names
 
 
-def get_cached_model(checkpoint_path: Path, model_name: str, device: torch.device):
+def get_cached_model(checkpoint_path: Path, model_name: str, device):
     cache_key = (str(checkpoint_path), model_name, str(device))
     if cache_key not in MODEL_CACHE:
         MODEL_CACHE[cache_key] = load_checkpoint(checkpoint_path, model_name, device)
@@ -134,6 +143,7 @@ def get_class_names(path: Path, num_classes: int):
 
 
 def predict_torch(checkpoint: Path, image: Path, model_name: str, image_size: int, device: str):
+    torch, _ = import_torch()
     device = torch.device(device if torch.cuda.is_available() and device == 'cuda' else 'cpu')
     model, class_names = get_cached_model(checkpoint, model_name, device)
     input_tensor = preprocess(image, image_size).to(device)

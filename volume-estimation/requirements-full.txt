@@ -1,0 +1,13 @@
+# Full dependencies for training and exporting the model
+numpy==2.4.4
+Pillow==12.2.0
+torch==2.11.0
+torchvision==0.26.0
+albumentations==1.3.0
+opencv-python-headless==4.13.0.92
+scikit-learn==1.8.0
+scikit-image==0.26.0
+onnx==1.21.0
+onnxruntime==1.25.1
+onnxscript==0.7.0
+onnxruntime-tools
