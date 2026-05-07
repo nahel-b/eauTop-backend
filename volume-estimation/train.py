@@ -22,7 +22,16 @@ from torchvision import models
 
 SUPPORTED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.webp'}
 
-# python train.py --data-dir dataset_eauTop --model-name resnet50 --epochs 20 --batch-size 16 --output-dir checkpoints
+
+# cd /Users/nahelbelmadani/Desktop/projets/eauTop-backend
+# source .venv/bin/activate
+
+# entrainer le modèle :
+# python3 volume-estimation/train.py --data-dir volume-estimation/dataset_eauTop --model-name resnet50 --epochs 20 --batch-size 16 --output-dir volume-estimation/checkpoints --device cpu
+
+# exporter le modèle entraîné en ONNX :
+# python3 volume-estimation/export_onnx.py --checkpoint volume-estimation/checkpoints/resnet50_best.pth --model-name resnet50 --output volume-estimation/model_resnet50.onnx
+
 
 try:
     from huggingface_hub import create_repo, upload_file

@@ -1,11 +1,11 @@
                     precision    recall  f1-score   support
 
-    01_verre_200mL       1.00      0.71      0.83         7
-    02_tasse_400mL       0.78      0.78      0.78         9
-03_bouteille_500mL       0.71      0.71      0.71         7
+    01_verre_200mL       1.00      0.86      0.92         7
+    02_tasse_400mL       1.00      1.00      1.00         9
+03_bouteille_500mL       0.56      0.71      0.62         7
    04_bouteille_1L       0.00      0.00      0.00         3
-  05_bouteille_1L5       0.57      0.89      0.70         9
+  05_bouteille_1L5       0.64      0.78      0.70         9
 
-          accuracy                           0.71        35
-         macro avg       0.61      0.62      0.60        35
-      weighted avg       0.69      0.71      0.69        35
+          accuracy                           0.77        35
+         macro avg       0.64      0.67      0.65        35
+      weighted avg       0.73      0.77      0.75        35
