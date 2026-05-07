@@ -41,23 +41,19 @@ exports.predictContainer = async (req, res) => {
 
     const imagePath = req.file.path;
     // Utilise le chemin absolu depuis la racine du projet (Render context)
-    const checkpointPath = path.join(process.cwd(), 'volume-estimation/checkpoints/resnet18_best.pth');
+    const onnxModelPath = path.join(process.cwd(), 'volume-estimation/model_resnet50.onnx');
     const pythonScript = path.join(process.cwd(), 'volume-estimation/predict.py');
 
     execFile(
       'python3',
       [
         pythonScript,
-        '--checkpoint',
-        checkpointPath,
+        '--onnx-model',
+        onnxModelPath,
         '--image',
         imagePath,
-        '--model-name',
-        'resnet18',
         '--image-size',
         '224',
-        '--device',
-        'cpu',
       ],
       (error, stdout, stderr) => {
         // Clean up temp file

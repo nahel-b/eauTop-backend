@@ -36,6 +36,13 @@ Après entraînement, utilise `predict.py` :
 python predict.py --checkpoint checkpoints/resnet50_best.pth --image dataset_eauTop/01_verre_200mL/IMG_7250.jpeg --model-name resnet50
 ```
 
+Pour une version plus légère en mémoire, exporte et utilise un modèle ONNX :
+
+```bash
+python export_onnx.py --checkpoint checkpoints/resnet50_best.pth --model-name resnet50 --output model_resnet50.onnx
+python predict.py --onnx-model model_resnet50.onnx --image dataset_eauTop/01_verre_200mL/IMG_7250.jpeg
+```
+
 La sortie affichera la classe prédite, par exemple `01_verre_200mL`.
 
 ## Hugging Face

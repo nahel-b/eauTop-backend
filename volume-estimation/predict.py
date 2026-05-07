@@ -9,6 +9,8 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['NUMEXPR_NUM_THREADS'] = '1'
 os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
 
+os.environ['TORCH_HOME'] = os.environ.get('TORCH_HOME', str(Path.home() / '.cache' / 'torch'))
+
 import numpy as np
 import torch
 from PIL import Image
@@ -16,6 +18,7 @@ from torchvision import models
 
 torch.set_num_threads(1)
 torch.set_num_interop_threads(1)
+torch.set_grad_enabled(False)
 
 try:
     from albumentations import Compose, Normalize, Resize
@@ -23,9 +26,19 @@ try:
 except ImportError:
     raise ImportError('Installe albumentations pour lancer ce script : pip install albumentations')
 
+try:
+    import onnxruntime as ort
+    ONNX_RUNTIME_AVAILABLE = True
+except ImportError:
+    ort = None
+    ONNX_RUNTIME_AVAILABLE = False
 
-def load_config(checkpoint_path: Path):
-    config_path = checkpoint_path.parent / 'model_config.json'
+MODEL_CACHE = {}
+SESSION_CACHE = {}
+
+
+def load_config(path: Path):
+    config_path = path.parent / 'model_config.json'
     if config_path.exists():
         return json.loads(config_path.read_text())
     return None
@@ -79,32 +92,74 @@ def load_checkpoint(checkpoint_path: Path, model_name: str, device: torch.device
     config = load_config(checkpoint_path)
     num_classes = config.get('num_classes', 4) if config else 4
     class_names = config.get('classes') if config else None
+
     model = build_model(model_name, num_classes=num_classes)
     state = torch.load(checkpoint_path, map_location=device)
-    if 'model_state_dict' in state:
+    if isinstance(state, dict) and 'model_state_dict' in state:
         model.load_state_dict(state['model_state_dict'])
     else:
         model.load_state_dict(state)
+
     model.to(device)
     model.eval()
     return model, class_names
 
 
-def predict(checkpoint: Path, image: Path, model_name: str, image_size: int, device: str):
+def get_cached_model(checkpoint_path: Path, model_name: str, device: torch.device):
+    cache_key = (str(checkpoint_path), model_name, str(device))
+    if cache_key not in MODEL_CACHE:
+        MODEL_CACHE[cache_key] = load_checkpoint(checkpoint_path, model_name, device)
+    return MODEL_CACHE[cache_key]
+
+
+def load_onnx_session(onnx_path: Path):
+    if not ONNX_RUNTIME_AVAILABLE:
+        raise ImportError('onnxruntime n\'est pas installé. Installe le avec pip install onnxruntime')
+
+    if onnx_path not in SESSION_CACHE:
+        sess_options = ort.SessionOptions()
+        sess_options.intra_op_num_threads = 1
+        sess_options.inter_op_num_threads = 1
+        sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        session = ort.InferenceSession(str(onnx_path), sess_options=sess_options, providers=['CPUExecutionProvider'])
+        SESSION_CACHE[onnx_path] = session
+    return SESSION_CACHE[onnx_path]
+
+
+def get_class_names(path: Path, num_classes: int):
+    config = load_config(path)
+    if config and isinstance(config.get('classes'), list):
+        return config['classes']
+    return [f'class_{i}' for i in range(num_classes)]
+
+
+def predict_torch(checkpoint: Path, image: Path, model_name: str, image_size: int, device: str):
     device = torch.device(device if torch.cuda.is_available() and device == 'cuda' else 'cpu')
-    model, class_names = load_checkpoint(checkpoint, model_name, device)
+    model, class_names = get_cached_model(checkpoint, model_name, device)
     input_tensor = preprocess(image, image_size).to(device)
-    with torch.no_grad():
+    with torch.inference_mode():
         output = model(input_tensor)
-        pred_idx = output.argmax(dim=1).item()
+        pred_idx = int(output.argmax(dim=1).item())
     if class_names is None:
         class_names = [f'class_{i}' for i in range(output.shape[1])]
     return class_names[pred_idx]
 
 
+def predict_onnx(onnx_path: Path, image: Path, image_size: int):
+    session = load_onnx_session(onnx_path)
+    input_tensor = preprocess(image, image_size).cpu().numpy().astype(np.float32)
+    outputs = session.run(None, {'input': input_tensor})
+    output = outputs[0]
+    pred_idx = int(np.argmax(output, axis=1)[0])
+    class_names = get_class_names(onnx_path, output.shape[1])
+    return class_names[pred_idx]
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Prédire le volume et la confiance avec un modèle entraîné')
-    parser.add_argument('--checkpoint', type=Path, required=True, help='Chemin du checkpoint .pth')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--checkpoint', type=Path, help='Chemin du checkpoint .pth')
+    group.add_argument('--onnx-model', type=Path, help='Chemin du modèle ONNX à utiliser pour l\'inférence')
     parser.add_argument('--image', type=Path, required=True, help='Image à prédire')
     parser.add_argument('--model-name', type=str, default='resnet18', choices=['resnet18', 'resnet50', 'efficientnet_b0'])
     parser.add_argument('--image-size', type=int, default=224)
@@ -114,7 +169,10 @@ def parse_args():
 
 def main():
     args = parse_args()
-    label = predict(args.checkpoint, args.image, args.model_name, args.image_size, args.device)
+    if args.onnx_model:
+        label = predict_onnx(args.onnx_model, args.image, args.image_size)
+    else:
+        label = predict_torch(args.checkpoint, args.image, args.model_name, args.image_size, args.device)
     print(f"Classe prédite : {label}")
 
 

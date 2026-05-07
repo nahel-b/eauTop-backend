@@ -1,4 +1,5 @@
 import argparse
+import shutil
 from pathlib import Path
 
 import torch
@@ -97,6 +98,11 @@ def main():
     model = load_checkpoint(model, args.checkpoint, device)
 
     export_onnx(model, args.output, args.image_size, device)
+    config_src = args.checkpoint.parent / 'model_config.json'
+    config_dst = args.output.parent / 'model_config.json'
+    if config_src.exists():
+        shutil.copy2(config_src, config_dst)
+        print(f'Configuration copiée dans : {config_dst}')
 
     if not args.no_optimize:
         optimized_output = args.output.parent / f'{args.output.stem}_optimized{args.output.suffix}'

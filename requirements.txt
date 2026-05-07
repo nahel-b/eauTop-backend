@@ -4,4 +4,5 @@ numpy
 opencv-python
 Pillow
 scikit-learn
+onnxruntime
 # Ajoute d'autres dépendances nécessaires ici
