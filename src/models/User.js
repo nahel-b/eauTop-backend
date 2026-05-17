@@ -23,6 +23,39 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    notificationSettings: {
+      enabled: {
+        type: Boolean,
+        default: false,
+      },
+      pushSubscription: {
+        endpoint: String,
+        keys: {
+          p256dh: String,
+          auth: String,
+        },
+      },
+      notifyAtNoon: {
+        enabled: {
+          type: Boolean,
+          default: true,
+        },
+        threshold: {
+          type: Number,
+          default: 50,
+        },
+      },
+      notifyAtEvening: {
+        enabled: {
+          type: Boolean,
+          default: true,
+        },
+        threshold: {
+          type: Number,
+          default: 80,
+        },
+      },
+    },
   },
   { timestamps: true }
 );

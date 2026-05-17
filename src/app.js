@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const waterRoutes = require('./routes/water');
 const aiRoutes = require('./routes/ai');
 const friendRoutes = require('./routes/friends');
+const notificationRoutes = require('./routes/notifications');
 const auth = require('./middleware/auth');
 const authController = require('./controllers/authController');
 
@@ -62,9 +63,15 @@ app.use('/api/auth', authRoutes);
 app.use('/api/water', waterRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/friends', friendRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Protected route for getting current user
 app.get('/api/user/me', auth, authController.getMe);
+
+// Public route for getting VAPID public key
+app.get('/api/vapid-public-key', (req, res) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
