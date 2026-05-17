@@ -55,6 +55,7 @@ const userSchema = new mongoose.Schema(
           default: 80,
         },
       },
+      _id: false, // Pas de _id pour les sous-documents
     },
   },
   { timestamps: true }

@@ -22,6 +22,15 @@ exports.subscribeToPush = async (req, res) => {
       {
         'notificationSettings.pushSubscription': subscription,
         'notificationSettings.enabled': true,
+        // Ensure default notification settings exist
+        'notificationSettings.notifyAtNoon': {
+          enabled: true,
+          threshold: 50,
+        },
+        'notificationSettings.notifyAtEvening': {
+          enabled: true,
+          threshold: 80,
+        },
       },
       { new: true }
     );
@@ -106,11 +115,15 @@ exports.checkWaterIntakeAndNotify = async (req, res) => {
     const now = new Date();
     const hours = now.getHours();
 
-    // Get all users with enabled notifications
+    console.log(`[CRON] Starting at ${hours}h...`);
+
+    // Get all users with enabled notifications and valid push subscription
     const users = await User.find({
       'notificationSettings.enabled': true,
-      'notificationSettings.pushSubscription': { $exists: true },
+      'notificationSettings.pushSubscription.endpoint': { $exists: true, $ne: null },
     }).lean();
+
+    console.log(`[CRON] Found ${users.length} users with notifications enabled`);
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -118,59 +131,78 @@ exports.checkWaterIntakeAndNotify = async (req, res) => {
     endOfDay.setHours(23, 59, 59, 999);
 
     let sentCount = 0;
+    let skippedCount = 0;
     const goalPerDay = 2000; // 2 liters
 
     for (const user of users) {
-      const waterIntakes = await WaterIntake.find({
-        userId: user._id,
-        timestamp: { $gte: startOfDay, $lte: endOfDay },
-      });
+      try {
+        const waterIntakes = await WaterIntake.find({
+          userId: user._id,
+          timestamp: { $gte: startOfDay, $lte: endOfDay },
+        });
 
-      const totalVolume = waterIntakes.reduce((sum, intake) => sum + intake.actualVolume, 0);
-      const percentage = (totalVolume / goalPerDay) * 100;
+        const totalVolume = waterIntakes.reduce((sum, intake) => sum + intake.actualVolume, 0);
+        const percentage = (totalVolume / goalPerDay) * 100;
 
-      let shouldNotify = false;
-      let message = {};
+        console.log(`[CRON] User ${user._id}: ${Math.round(percentage)}% - Settings:`, {
+          notifyAtNoon: user.notificationSettings?.notifyAtNoon,
+          notifyAtEvening: user.notificationSettings?.notifyAtEvening,
+        });
 
-      // At 12h: Check if less than 50%
-      if (hours >= 12 && hours < 13 && user.notificationSettings.notifyAtNoon?.enabled) {
-        if (percentage < (user.notificationSettings.notifyAtNoon?.threshold || 50)) {
-          shouldNotify = true;
-          message = {
-            title: '💧 Hydratation à midi',
-            body: `Vous n'avez consommé que ${Math.round(percentage)}% de votre objectif (${totalVolume}mL / ${goalPerDay}mL). N'oubliez pas de boire!`,
-          };
-        }
-      }
+        let shouldNotify = false;
+        let message = {};
 
-      // At 20h: Check if less than 80%
-      if (hours >= 20 && hours < 21 && user.notificationSettings.notifyAtEvening?.enabled) {
-        if (percentage < (user.notificationSettings.notifyAtEvening?.threshold || 80)) {
-          shouldNotify = true;
-          message = {
-            title: '💧 Hydratation du soir',
-            body: `Vous n'avez consommé que ${Math.round(percentage)}% de votre objectif (${totalVolume}mL / ${goalPerDay}mL). Finissez votre journée bien hydraté!`,
-          };
-        }
-      }
-
-      if (shouldNotify && user.notificationSettings.pushSubscription) {
-        try {
-          await webpush.sendNotification(
-            user.notificationSettings.pushSubscription,
-            JSON.stringify(message)
-          );
-          sentCount++;
-        } catch (error) {
-          console.error(`Failed to send notification to user ${user._id}:`, error.message);
-          // If subscription is invalid, remove it
-          if (error.statusCode === 410) {
-            await User.findByIdAndUpdate(user._id, {
-              'notificationSettings.pushSubscription': null,
-              'notificationSettings.enabled': false,
-            });
+        // At 12h: Check if less than 50%
+        if (hours >= 12 && hours < 13) {
+          const noonSettings = user.notificationSettings?.notifyAtNoon;
+          if (noonSettings?.enabled && percentage < (noonSettings?.threshold || 50)) {
+            console.log(`[CRON] User ${user._id}: Sending noon notification (${Math.round(percentage)}% < ${noonSettings?.threshold || 50}%)`);
+            shouldNotify = true;
+            message = {
+              title: '💧 Hydratation à midi',
+              body: `Vous n'avez consommé que ${Math.round(percentage)}% de votre objectif (${totalVolume}mL / ${goalPerDay}mL). N'oubliez pas de boire!`,
+            };
           }
         }
+
+        // At 20h: Check if less than 80%
+        if (hours >= 20 && hours < 21) {
+          const eveningSettings = user.notificationSettings?.notifyAtEvening;
+          if (eveningSettings?.enabled && percentage < (eveningSettings?.threshold || 80)) {
+            console.log(`[CRON] User ${user._id}: Sending evening notification (${Math.round(percentage)}% < ${eveningSettings?.threshold || 80}%)`);
+            shouldNotify = true;
+            message = {
+              title: '💧 Hydratation du soir',
+              body: `Vous n'avez consommé que ${Math.round(percentage)}% de votre objectif (${totalVolume}mL / ${goalPerDay}mL). Finissez votre journée bien hydraté!`,
+            };
+          }
+        }
+
+        if (shouldNotify && user.notificationSettings.pushSubscription?.endpoint) {
+          try {
+            await webpush.sendNotification(
+              user.notificationSettings.pushSubscription,
+              JSON.stringify(message)
+            );
+            sentCount++;
+            console.log(`[CRON] ✓ Notification sent to user ${user._id}`);
+          } catch (error) {
+            console.error(`[CRON] Failed to send notification to user ${user._id}:`, error.message);
+            // If subscription is invalid, remove it
+            if (error.statusCode === 410) {
+              await User.findByIdAndUpdate(user._id, {
+                'notificationSettings.pushSubscription': null,
+                'notificationSettings.enabled': false,
+              });
+            }
+          }
+        } else {
+          if (!shouldNotify) {
+            skippedCount++;
+          }
+        }
+      } catch (error) {
+        console.error(`[CRON] Error processing user ${user._id}:`, error.message);
       }
     }
 
@@ -178,6 +210,7 @@ exports.checkWaterIntakeAndNotify = async (req, res) => {
       message: 'Cron job completed',
       time: `${hours}h`,
       notificationsSent: sentCount,
+      usersSkipped: skippedCount,
       totalUsers: users.length,
     });
   } catch (error) {
