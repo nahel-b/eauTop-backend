@@ -153,6 +153,8 @@ exports.sendFriendNotification = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.checkWaterIntakeAndNotify = async (req, res) => {
   try {
     // Verify cron job authenticity (optional - use header token)
     const cronToken = req.headers['x-cron-token'];
