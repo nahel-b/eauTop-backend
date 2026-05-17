@@ -1,6 +1,6 @@
 ,01_verre_200mL,02_tasse_400mL,03_bouteille_500mL,04_bouteille_1L,05_bouteille_1L5
-01_verre_200mL,6,1,1,0,0
-02_tasse_400mL,0,9,0,0,0
-03_bouteille_500mL,0,0,6,0,1
-04_bouteille_1L,0,0,2,0,1
-05_bouteille_1L5,0,0,2,0,8
+01_verre_200mL,11,1,0,0,0
+02_tasse_400mL,2,8,0,0,0
+03_bouteille_500mL,1,0,4,0,2
+04_bouteille_1L,0,0,1,0,2
+05_bouteille_1L5,1,0,0,0,9

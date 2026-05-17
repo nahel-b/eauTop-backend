@@ -1,0 +1,16 @@
+{
+  "model_name": "resnet50",
+  "image_size": 224,
+  "num_classes": 5,
+  "classes": [
+    "01_verre_200mL",
+    "02_tasse_400mL",
+    "03_bouteille_500mL",
+    "04_bouteille_1L",
+    "05_bouteille_1L5"
+  ],
+  "output": [
+    "class_label"
+  ],
+  "pretrained": true
+}
