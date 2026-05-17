@@ -103,8 +103,56 @@ exports.updateNotificationSettings = async (req, res) => {
   }
 };
 
-// Cron job: Check water intake and send notifications
-exports.checkWaterIntakeAndNotify = async (req, res) => {
+// Send custom notification to a friend
+exports.sendFriendNotification = async (req, res) => {
+  try {
+    const { friendId, message } = req.body;
+
+    if (!friendId) {
+      return res.status(400).json({ error: 'Friend ID required' });
+    }
+
+    const friend = await User.findById(friendId).select('notificationSettings username');
+    if (!friend) {
+      return res.status(404).json({ error: 'Friend not found' });
+    }
+
+    if (!friend.notificationSettings?.enabled || !friend.notificationSettings?.pushSubscription?.endpoint) {
+      return res.status(400).json({ error: 'Friend has not enabled notifications' });
+    }
+
+    const sender = await User.findById(req.userId).select('username');
+
+    const notificationPayload = {
+      title: `💧 ${sender.username} t'envoie un message!`,
+      body: message || `${sender.username} te rappelle de boire de l'eau! 💧`,
+    };
+
+    try {
+      await webpush.sendNotification(
+        friend.notificationSettings.pushSubscription,
+        JSON.stringify(notificationPayload)
+      );
+
+      res.json({
+        message: 'Notification sent to friend',
+        sentTo: friend.username,
+      });
+    } catch (error) {
+      console.error(`Failed to send notification to friend ${friendId}:`, error.message);
+      if (error.statusCode === 410) {
+        await User.findByIdAndUpdate(friendId, {
+          'notificationSettings.pushSubscription': null,
+          'notificationSettings.enabled': false,
+        });
+        return res.status(400).json({ error: 'Friend subscription expired' });
+      }
+      throw error;
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
   try {
     // Verify cron job authenticity (optional - use header token)
     const cronToken = req.headers['x-cron-token'];

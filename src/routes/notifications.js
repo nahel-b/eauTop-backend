@@ -10,6 +10,7 @@ router.post('/subscribe', auth, notificationController.subscribeToPush);
 router.post('/unsubscribe', auth, notificationController.unsubscribeFromPush);
 router.get('/settings', auth, notificationController.getNotificationSettings);
 router.put('/settings', auth, notificationController.updateNotificationSettings);
+router.post('/send-to-friend', auth, notificationController.sendFriendNotification);
 
 // Public cron job route (secured by token)
 router.post('/cron/check', notificationController.checkWaterIntakeAndNotify);

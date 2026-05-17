@@ -234,11 +234,12 @@ exports.getFriendStats = async (req, res) => {
       },
     ]);
 
-    // Get friend's info
-    const friend = await User.findById(friendId, 'username _id');
+    // Get friend's info with notification settings
+    const friend = await User.findById(friendId, 'username _id notificationSettings');
 
     res.json({
       friend,
+      notificationSettings: friend.notificationSettings,
       todayIntake: todayIntake[0] || { totalVolume: 0, count: 0, waterIntakes: [] },
       history: { dailyTotals: history },
     });
