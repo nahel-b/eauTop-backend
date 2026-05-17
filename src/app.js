@@ -7,6 +7,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const waterRoutes = require('./routes/water');
 const aiRoutes = require('./routes/ai');
+const friendRoutes = require('./routes/friends');
 const auth = require('./middleware/auth');
 const authController = require('./controllers/authController');
 
@@ -15,6 +16,7 @@ const app = express();
 // CORS Configuration
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3002',
   'http://localhost:5000',
   'http://localhost:5001',
   'https://eau-top.vercel.app',
@@ -59,6 +61,7 @@ mongoose
 app.use('/api/auth', authRoutes);
 app.use('/api/water', waterRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/friends', friendRoutes);
 
 // Protected route for getting current user
 app.get('/api/user/me', auth, authController.getMe);
